@@ -11,6 +11,7 @@
 
 static char *ngx_http_zookeeper_path_parser(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static char *ngx_http_zookeeper_host_parser(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+static char *ngx_http_zookeeper_value_parser(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle);
 static void ngx_http_zookeeper_exit_master(ngx_cycle_t *cycle);
 static void *ngx_http_zookeeper_create_main_conf(ngx_conf_t *cf);
@@ -20,8 +21,10 @@ static char *ngx_http_zookeeper_init_main_conf(ngx_conf_t *cf, void *conf);
 typedef struct {
     ngx_str_t host;
     ngx_str_t path;
+    ngx_str_t value;
     char *cHost;
     char *cPath;
+    char *cValue;
     zhandle_t *handle;
 } ngx_http_zookeeper_main_conf_t;
 
@@ -43,6 +46,15 @@ static ngx_command_t ngx_http_zookeeper_commands[] = {
         offsetof(ngx_http_zookeeper_main_conf_t, host),
         NULL
     },
+    {
+        ngx_string("zookeeper_value"),
+        NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+        ngx_http_zookeeper_value_parser,
+        NGX_HTTP_MAIN_CONF_OFFSET,
+        offsetof(ngx_http_zookeeper_main_conf_t, value),
+        NULL
+    },
+
     ngx_null_command
 };
 
@@ -88,6 +100,14 @@ static char *ngx_http_zookeeper_host_parser(ngx_conf_t *cf, ngx_command_t *cmd, 
     return NGX_CONF_OK;
 }
 
+// Parse configuration 
+static char *ngx_http_zookeeper_value_parser(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_conf_set_str_slot(cf, cmd, conf);
+    return NGX_CONF_OK;
+}
+
+
 // Init module
 static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
 {
@@ -112,6 +132,10 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "No zookeeper path was given");
         return NGX_OK;
     }
+    if (zmf->value.len <= 0) {
+        ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "No zookeeper value was given");
+        return NGX_OK;
+    }
     if (NULL == zmf->cHost) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Impossible cHost");
         ngx_log_stderr(0, "Impossible cHost");
@@ -120,6 +144,11 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
     if (NULL == zmf->cPath) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Impossible cPath");
         ngx_log_stderr(0, "Impossible cPath");
+        return NGX_ERROR;
+    }
+    if (NULL == zmf->cValue) {
+        ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Impossible cValue");
+        ngx_log_stderr(0, "Impossible cValue");
         return NGX_ERROR;
     }
 
@@ -132,7 +161,7 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
     }
 
     // create node
-    status = zoo_create(zmf->handle, zmf->cPath, NULL, -1, &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL, NULL, 0);
+    status = zoo_create(zmf->handle, zmf->cPath, zmf->cValue, zmf->value.len, &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL, NULL, 0);
     if (ZOK != status) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Fail to create zookeeper node");
         ngx_log_stderr(0, "Fail to create zookeeper node");
@@ -171,6 +200,9 @@ static void *ngx_http_zookeeper_create_main_conf(ngx_conf_t *cf)
     retval->path.len = 0;
     retval->path.data = NULL;
     retval->cPath = NULL;
+    retval->value.len = 0;
+    retval->value.data = NULL;
+    retval->cValue = NULL;
     retval->handle = NULL;
 
     return retval;
@@ -213,6 +245,18 @@ static char *ngx_http_zookeeper_init_main_conf(ngx_conf_t *cf, void *conf)
         mf->cPath[mf->path.len] = 0;
     }
     
+    // value (to be added to node)
+    if (mf->value.len <= 0)
+        ngx_log_stderr(0, "WARNING: Value was given");
+    else {
+        mf->cValue = malloc(mf->value.len + 1);
+        if (NULL == mf->cValue) {
+            ngx_log_stderr(0, "Fail to malloc for value");
+            return NGX_CONF_ERROR;
+        }
+        memcpy(mf->cValue, mf->value.data, mf->value.len);
+        mf->cValue[mf->value.len] = 0;
+    }
 
     return NGX_CONF_OK;
 }
