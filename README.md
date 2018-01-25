@@ -29,9 +29,13 @@ Configuration
 
     Which path will module create when Nginx server starts.
 
+* zookeeper_value
+
+    Text data to be registered.
+
 Examples
 ====
 
     zookeeper_host "192.168.0.2:2181,192.168.0.3:2181"
     zookeeper_path "/nginx/foo"
-
+    zookeeper_value "some data to register"
