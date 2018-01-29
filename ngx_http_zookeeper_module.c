@@ -221,7 +221,7 @@ static char *ngx_http_zookeeper_init_main_conf(ngx_conf_t *cf, void *conf)
 
     // host
     if (mf->host.len <= 0)
-        ngx_log_stderr(0, "WARNING: No zookeeper host was given");
+        ngx_log_stderr(0, "WARNING: No zookeeper_host was given");
     else {
         mf->cHost = malloc(mf->host.len + 1);
         if (NULL == mf->cHost) {
@@ -234,7 +234,7 @@ static char *ngx_http_zookeeper_init_main_conf(ngx_conf_t *cf, void *conf)
 
     // path
     if (mf->path.len <= 0)
-        ngx_log_stderr(0, "WARNING: No zookeeper path was given");
+        ngx_log_stderr(0, "WARNING: No zookeeper_path was given");
     else {
         mf->cPath = malloc(mf->path.len + 1);
         if (NULL == mf->cPath) {
@@ -247,7 +247,7 @@ static char *ngx_http_zookeeper_init_main_conf(ngx_conf_t *cf, void *conf)
     
     // value (to be added to node)
     if (mf->value.len <= 0)
-        ngx_log_stderr(0, "WARNING: Value was given");
+        ngx_log_stderr(0, "WARNING: No zookeeper_value was given");
     else {
         mf->cValue = malloc(mf->value.len + 1);
         if (NULL == mf->cValue) {
