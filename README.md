@@ -31,7 +31,7 @@ Configuration
 
 * zookeeper_value
 
-    Text data to be registered.
+    Text data to be registered (optional).
 
 Examples
 ====

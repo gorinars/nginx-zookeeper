@@ -4,6 +4,7 @@
  * @author Timandes White <timands@gmail.com>
  */
 
+#include <libgen.h>
 #include <ngx_config.h>
 #include <ngx_core.h>
 #include <ngx_http.h>
@@ -134,7 +135,6 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
     }
     if (zmf->value.len <= 0) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "No zookeeper value was given");
-        return NGX_OK;
     }
     if (NULL == zmf->cHost) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Impossible cHost");
@@ -149,7 +149,6 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
     if (NULL == zmf->cValue) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Impossible cValue");
         ngx_log_stderr(0, "Impossible cValue");
-        return NGX_ERROR;
     }
 
     // init zookeeper
@@ -160,7 +159,23 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
         return NGX_ERROR;
     }
 
+    // create node path
+    char *dir_name = strcat(dirname(strdup(zmf->cPath)), "/");
+    char* p;
+    for (p=strchr(dir_name+1, '/'); p; p=strchr(p+1, '/')) {
+      *p='\0';
+      status = zoo_create(zmf->handle, dir_name, NULL, 0, &ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0);
+      if (ZOK != status && ZNODEEXISTS != status) {
+        ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Fail to create zookeeper node");
+        ngx_log_stderr(0, "Fail to create zookeeper node");
+        zookeeper_close(zmf->handle);
+        zmf->handle = NULL;
+        return NGX_ERROR;
+      }
+      *p='/';
+    }
     // create node
+    ngx_log_stderr(0, zmf->cPath);
     status = zoo_create(zmf->handle, zmf->cPath, zmf->cValue, zmf->value.len, &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL, NULL, 0);
     if (ZOK != status) {
         ngx_log_error(NGX_LOG_WARN, cycle->log, 0, "Fail to create zookeeper node");
@@ -169,7 +184,7 @@ static ngx_int_t ngx_http_zookeeper_init_module(ngx_cycle_t *cycle)
         zmf->handle = NULL;
         return NGX_ERROR;
     }
-
+    ngx_log_stderr(0, "Registered in ZK - OK");
     return NGX_OK;
 }
 
